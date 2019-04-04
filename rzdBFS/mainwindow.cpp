@@ -7,20 +7,20 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    ui->widget->setInteraction(QCP::iRangeZoom, true);
-    ui->widget->setInteraction(QCP::iRangeDrag, true);
+    ui->widget1->setInteraction(QCP::iRangeZoom, true);
+    ui->widget1->setInteraction(QCP::iRangeDrag, true);
 
-    ui->widget->plotLayout()->insertRow(0);
-    ui->widget->plotLayout()->addElement(0, 0, new QCPTextElement(ui->widget, "Station MAP", QFont("sans", 12, QFont::Bold)));
+    ui->widget1->plotLayout()->insertRow(0);
+    ui->widget1->plotLayout()->addElement(0, 0, new QCPTextElement(ui->widget1, "Station MAP", QFont("sans", 12, QFont::Bold)));
 
-    ui->widget->xAxis->setLabel("EASTING METER");
-    ui->widget->yAxis->setLabel("NORTHING METER");
+    ui->widget1->xAxis->setLabel("EASTING METER");
+    ui->widget1->yAxis->setLabel("NORTHING METER");
 
-    ui->widget->replot();
+    ui->widget1->replot();
 
     QSqlDatabase dbase;
     dbase = QSqlDatabase::addDatabase("QSQLITE");
-    dbase.setDatabaseName(R"(D:\Qt\C++\rzdBFS\rzhd.db)");
+    dbase.setDatabaseName("/home/pl/rzdBFS/rzhd.db");
 
     if (!dbase.open()) qDebug() << dbase.lastError().text();
         else qDebug() << "Rzd database opened ";
@@ -126,56 +126,53 @@ void MainWindow::on_pushButton_BFS_clicked()
 
 void MainWindow::on_pushButton_station_map_clicked()
 {
-    auto *graph1 = new QCPCurve (ui->widget->xAxis, ui->widget->yAxis);
-    graph1->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, QPen(Qt::red, 0.5), QBrush(Qt::white), 5));
-    graph1->setPen(QPen(QColor(120, 120, 120), 2));
+    Xstart = 0.0;
+    Ystart = 0.0;
 
-    auto qGP = new QSqlQuery();
-    if( qGP->exec("SELECT ID_GEO_POINT_START, ID_GEO_POINT_END FROM GEO_LINE") )
+    auto qGPstart = new QSqlQuery();
+    if( qGPstart->exec("SELECT ID_GEO_POINT_START FROM GEO_LINE") )
     {
-        while(qGP->next())
+        while(qGPstart->next())
         {
             auto qGPstartXY = new QSqlQuery();
             qGPstartXY->prepare("SELECT EASTING_METER, NORTHING_METER FROM GEO_POINT WHERE ID = ?");
-            qGPstartXY->addBindValue(qGP->value(0).toInt());
+            qGPstartXY->addBindValue(qGPstart->value(0).toInt());
 
             if ( qGPstartXY->exec() )
             {
-                while(qGPstartXY->next())
-                {
-//                  GPx.push_back(qGPstartXY->value(0).toDouble());
-//                  GPy.push_back(qGPstartXY->value(1).toDouble());
-
-                    x1 = qGPstartXY->value(0).toDouble();
-                    y1 = qGPstartXY->value(1).toDouble();
-                }
+                qGPstartXY->next();
+                Xstart = qGPstartXY->value(0).toDouble();
+                Ystart = qGPstartXY->value(1).toDouble();
             }
 
-            auto qGPendXY = new QSqlQuery();
-            qGPendXY->prepare("SELECT EASTING_METER, NORTHING_METER FROM GEO_POINT WHERE ID = ?");
-            qGPendXY->addBindValue(qGP->value(1).toInt());
+            auto qGPend = new QSqlQuery();
+            qGPend->prepare("SELECT ID_GEO_POINT_END FROM GEO_LINE WHERE ID_GEO_POINT_START = ?");
+            qGPend->addBindValue(qGPstart->value(0).toInt());
 
-            if ( qGPendXY->exec() )
+            if ( qGPend->exec() )
             {
-                while(qGPendXY->next())
+                while( qGPend->next() )
                 {
-//                    GPx.push_back(qGPendXY->value(0).toDouble());
-//                    GPy.push_back(qGPendXY->value(1).toDouble());
+                    auto qGPendXY = new QSqlQuery();
+                    qGPendXY->prepare("SELECT EASTING_METER, NORTHING_METER FROM GEO_POINT WHERE ID = ?");
+                    qGPendXY->addBindValue(qGPend->value(0).toInt());
 
-                    x2 = qGPendXY->value(0).toDouble();
-                    y2 = qGPendXY->value(1).toDouble();
+                    if ( qGPendXY->exec() )
+                    {
+                        auto *line = new QCPItemLine(ui->widget1);
+
+                        qGPendXY->next();
+                        Xend = qGPendXY->value(0).toDouble();
+                        Yend = qGPendXY->value(1).toDouble();
+
+                        line->start->setCoords(Xstart, Ystart);
+                        line->end->setCoords(Xend, Yend);
+                    }
                 }
             }
-
-            auto *line = new QCPItemLine(ui->widget);
-            line->start->setCoords(x1, y1);
-            line->end->setCoords(x2, y2);
-            ui->widget->item(line);
         }
     }
 
-//    graph1->setData(GPx, GPy);
-
-    ui->widget->rescaleAxes();
-    ui->widget->replot();
+    ui->widget1->rescaleAxes();
+    ui->widget1->replot();
 }

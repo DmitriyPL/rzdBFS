@@ -42,7 +42,7 @@ private:
     QList <int> queue;
     QSet <int> chekedGP;
 
-    double x1, y1, x2, y2;
+    double Xstart, Ystart, Xend, Yend;
 
     int GPsearch;
     int pathLenth;
